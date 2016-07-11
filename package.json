@@ -1,0 +1,24 @@
+{
+  "name": "kewl-bot",
+  "version": "1.0.0",
+  "description": "A bot that does kewl stuff duh!",
+  "main": "kewl_bot.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Nyanko/Bludot",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^0.8.5",
+    "bluebird": "^3.3.4",
+    "body-parser": "^1.15.1",
+    "crypto-extra": "^0.2.4",
+    "express": "^4.13.4",
+    "markovchain-generate": "^1.0.11",
+    "mysql": "^2.10.2",
+    "page-info": "^2.1.1",
+    "request": "^2.72.0",
+    "sequelize": "^3.20.0",
+    "url-unshort": "^1.1.3"
+  }
+}

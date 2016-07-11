@@ -1,0 +1,42 @@
+{
+     "apps" : [
+         {
+             "name"        : "toobot_lp",
+             "script"      : "bot.js",
+             "instances"   : 1,
+             "exec_mode"   : "cluster",
+             "watch"       : false,
+             "args"        : "irc.systemnet.info Nyaa 6667 false toolbot toolbot lp #test_irc #legendary_pokemon",
+             "env"         : {"NODE_ENV": "development"}
+         },
+
+
+         {
+             "name"        : "toobot_rol",
+             "script"      : "bot.js",
+             "instances"   : 1,
+             "exec_mode"   : "cluster",
+             "watch"       : false,
+             "args"        : "citadel.ringoflightning.net Nyaa 6667 false toolbot toolbot NULL #gpp",
+             "env"         : {"NODE_ENV": "development"}
+         },
+
+
+         {
+             "name"        : "toobot_rizon",
+             "script"      : "bot.js",
+             "instances"   : 1,
+             "exec_mode"   : "cluster",
+             "watch"       : false,
+             "args"        : "irc.rizon.net Nyan_Nyan 6667 false toolbot toolbot NULL #tasamayan",
+             "env"         : {"NODE_ENV": "development"}
+         }
+
+
+
+
+
+
+
+     ]
+}
