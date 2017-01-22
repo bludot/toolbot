@@ -2,8 +2,8 @@ var Parser = require('./parser');
 var codes = require('./codes');
 
 module.exports = function(crlfstring) {
-    this.message  = Parser.parse(crlfstring);
-    this._crlfstr = crlfstring;
+  this.message  = Parser.parse(crlfstring);
+  this._crlfstr = crlfstring;
 
   this._hasPrefix = function() {
     return typeof this.message.prefix !== 'undefined';
@@ -17,7 +17,7 @@ module.exports = function(crlfstring) {
   }
   this.prefix = function() {
     return (this._hasPrefix()) ?
-     `:${this.message.prefix['nickname']}!${this.message.prefix['user']}@${this.message.prefix['host']}`
+      `:${this.message.prefix['nickname']}!${this.message.prefix['user']}@${this.message.prefix['host']}`
       : undefined;
   }
   this.servername = function() {

@@ -35,7 +35,7 @@ module.exports = (function(){
             if(opt.debug) {
                 console.log('Received: ' + data);
             }
-            
+
 
             var tmp = data.toString().split(/\r\n/gi).map(e => e + "\r\n").filter(e => e.toString() != "\r\n").map(e => {
                 try {
@@ -102,10 +102,10 @@ module.exports = (function(){
     */
 
 
-        return {
-            connections: {},
-            connect: function(opt) {
-                this.connections[opt.server] = new connection(opt);
-            }
-        };
+    return {
+        connections: {},
+        connect: function(opt) {
+            this.connections[opt.server] = new connection(opt);
+        }
+    };
 })();
