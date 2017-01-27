@@ -20,6 +20,9 @@ irc.connections[options.server].addListener('raw', function(msg) {
 
 irc.connections[options.server].addListener('msg', function(msg) {
    console.log(msg);
+   if(msg.msg == "ping") {
+      irc.connections[options.server].raw("PRIVMSG #test_irc PONG!");
+   }
 });
 
 irc.connections[options.server].addListener('privmsg', function(msg) {
