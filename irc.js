@@ -141,6 +141,15 @@ module.exports = (function(){
         self.conn.write(text);
         return true;
     };
+    connection.prototype.say = function(to, msg) {
+        var self = this;
+        self.conn.write("PRIVMSG "+to+" "+msg+"\r\n");
+    }
+
+    connection.prototype.raw = function(msg) {
+        var self = this;
+        self.conn.write(msg+"\r\n");
+    }
     /*
 
     logger.log("verbose", msg);
