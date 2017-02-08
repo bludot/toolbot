@@ -40,11 +40,111 @@ var util = require('util');
 
 
 module.exports = (function(){
-
     var connection = function(opt) {
         var self = this;
-        var registered = false;
+        self.events = {
+            /* 'close': function(had_err) {
+            console.log('closed');
+            if(had_err) {
+                connection(self.options);
+            }
+        }*/
+            'timeout': function() {
+                console.log('timeout');
+                try {
+                    self.send("PING","1");
+                } catch(err) {
+                for(var i in self.listeners) {
+                self.removeListener(i, self.listeners[i]);
+                }
+                self.conn.destroy();
 
+                connections.connect(self.options);
+                }
+            },
+            'error': function(err) {
+                console.log(err);
+                connection(self.options);
+            },
+            'data': function(data) {
+                if(registered == false) {
+
+                    self.conn.write("USER " + opt.nick + " 8 *  :" + opt.nick + "\r\n");
+                    self.conn.write("NICK " + opt.nick + "\r\n");
+
+                    registered = true;
+                }
+                if(opt.debug) {
+                    logger.log("verbose", 'Received: ' + data);
+                }
+
+
+                var tmp = data.toString().split(/\r\n/gi).map(e => e + "\r\n").filter(e => e.toString() != "\r\n").map(e => {
+                    try {
+                        e = new Message(e);
+                    } catch (error) {
+                        e = undefined;
+                    }
+                    return e;
+                });
+                for (var i in tmp) {
+                    var msg = tmp[i];
+
+                    if (msg) {
+                        if(opt.debug) {
+                            //logger.log("verbose", msg);
+                        }
+                        msg.data = {};
+                        msg.data.server = self.server;
+                        //msg.data.nick = self.nick;
+                        self.emit('raw', msg);
+                        if (msg.command() == "PRIVMSG" && msg.params()[0].substr(0,1) == "#") {
+                            self.emit('msg', {from: msg.nickname(), msg: msg.trailing(), to: msg.args()[0]});
+                            self.emit('msg'+msg.params()[0], {from: msg.nickname(), msg: msg.trailing(), to: msg.args()[0]});
+                        }
+                        if (msg.command() == "PRIVMSG" && msg.params()[0].substr(0,1) != "#") {
+                            self.emit('privmsg', {from: msg.nickname(), to: msg.args()[0], msg: msg.trailing()});
+                        }
+                        if(msg.command() != 'PRIVMSG') {
+                            try {
+                            self.emit(msg.command().toLowerCase(), msg);
+                            } catch(err) {
+                                    console.log(err);
+
+                            }
+                        }
+                    }
+                }
+            },
+
+            'close': function() {
+                logger.log("verbose", 'Connection closed');
+            },
+        };
+        self.listeners = {
+            'raw': function(msg) {
+                if (msg.command() == "MODE" || msg.command() == "rpl_endofmotd") {
+                    logger.log("verbose", "attempt join");
+                    for (var j in opt.channels) {
+                        self.conn.write("JOIN " + opt.channels[j] + "\r\n");
+                    }
+                }
+                if(msg.command() == "NOTICE") {
+                    logger.log("verbose", "trailing: "+msg.trailing());
+                }
+                /*if(msg.command() == "NOTICE" && msg.trailing().toString().toLowerCase().indexOf("no ident response") != -1) {
+                logger.log("verbose", "try nick again");
+                self.conn.write("USER " + self.nick + " * *  :" + self.nick + "\r\n");
+                self.conn.write("NICK " + self.nick + "\r\n");
+            }*/
+                if (msg.command() == "PING") {
+                    logger.log("verbose", "got ping: " + msg.trailing());
+                    self.conn.write("PONG " + msg.trailing()+"\r\n");
+                }
+            }
+        };
+        var registered = false;
+        self.options = opt;
         self.conn = new net.Socket();
         self.server = opt.server;
         self.nick = opt.nick;
@@ -56,78 +156,15 @@ module.exports = (function(){
                 nick: opt.nick,
                 server: opt.server
             });
-
-        });
-
-        self.conn.on('data', function(data) {
-            if(registered == false) {
-
-                self.conn.write("USER " + opt.nick + " 8 *  :" + opt.nick + "\r\n");
-                self.conn.write("NICK " + opt.nick + "\r\n");
-
-                registered = true;
+self.conn.setKeepAlive(true);
+            self.conn.setTimeout(8 * 1000);
+            for(var i in self.listeners) {
+                self.addListener(i, self.listeners[i]);
             }
-            if(opt.debug) {
-                logger.log("verbose", 'Received: ' + data);
+            for(var j in self.events) {
+                self.conn.on(j, self.events[j]);
             }
-
-
-            var tmp = data.toString().split(/\r\n/gi).map(e => e + "\r\n").filter(e => e.toString() != "\r\n").map(e => {
-                try {
-                    e = new Message(e);
-                } catch (error) {
-                    e = undefined;
-                }
-                return e;
-            });
-            for (var i in tmp) {
-                var msg = tmp[i];
-
-                if (msg) {
-                    if(opt.debug) {
-                        //logger.log("verbose", msg);
-                    }
-                    msg.data = {};
-                    msg.data.server = self.server;
-                    //msg.data.nick = self.nick;
-                    self.emit('raw', msg);
-                    if (msg.command() == "PRIVMSG" && msg.params()[0].substr(0,1) == "#") {
-                        self.emit('msg', {from: msg.nickname(), msg: msg.trailing(), to: msg.args()[0]});
-                        self.emit('msg'+msg.params()[0], {from: msg.nickname(), msg: msg.trailing(), to: msg.args()[0]});
-                    }
-                    if (msg.command() == "PRIVMSG" && msg.params()[0].substr(0,1) != "#") {
-                        self.emit('privmsg', {from: msg.nickname(), to: msg.args()[0], msg: msg.trailing()});
-                    }
-                    if(msg.command() != 'PRIVMSG') {
-                        self.emit(msg.command().toLowerCase(), msg);
-                    }
-                }
-            }
-        });
-
-        self.conn.on('close', function() {
-            logger.log("verbose", 'Connection closed');
-        });
-        EventEmitter.call(self);
-        self.addListener('raw', function(msg) {
-            if (msg.command() == "MODE" || msg.command() == "rpl_endofmotd") {
-                logger.log("verbose", "attempt join");
-                for (var j in opt.channels) {
-                    self.conn.write("JOIN " + opt.channels[j] + "\r\n");
-                }
-            }
-            if(msg.command() == "NOTICE") {
-                logger.log("verbose", "trailing: "+msg.trailing());
-            }
-            /*if(msg.command() == "NOTICE" && msg.trailing().toString().toLowerCase().indexOf("no ident response") != -1) {
-                logger.log("verbose", "try nick again");
-                self.conn.write("USER " + self.nick + " * *  :" + self.nick + "\r\n");
-                self.conn.write("NICK " + self.nick + "\r\n");
-            }*/
-            if (msg.command() == "PING") {
-                logger.log("verbose", "got ping: " + msg.trailing());
-                self.conn.write("PONG " + msg.trailing()+"\r\n");
-            }
+            EventEmitter.call(self);
         });
     };
     util.inherits(connection, EventEmitter);
@@ -156,10 +193,11 @@ module.exports = (function(){
     */
 
 
-    return {
+    let connections = {
         connections: {},
         connect: function(opt) {
             this.connections[opt.server] = new connection(opt);
         }
     };
+    return connections;
 })();
