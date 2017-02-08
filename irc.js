@@ -83,7 +83,7 @@ module.exports = (function(){
             for (var i in tmp) {
                 var msg = tmp[i];
 
-                if (msg) {
+                if (msg && msg.command) {
                     if(opt.debug) {
                         //logger.log("verbose", msg);
                     }
@@ -92,11 +92,13 @@ module.exports = (function(){
                     //msg.data.nick = self.nick;
                     self.emit('raw', msg);
                     if (msg.command() == "PRIVMSG" && msg.params()[0].substr(0,1) == "#") {
-                        self.emit('msg', {from: msg.nickname(), msg: msg.trailing(), to: msg.args()[0]});
-                        self.emit('msg'+msg.params()[0], {from: msg.nickname(), msg: msg.trailing(), to: msg.args()[0]});
+                        self.emit('msg#', msg.nickname(), msg.args()[0], msg.trailing());
+                    }
+                    if (msg.command() == "PRIVMSG") {
+                        self.emit('msg', msg.nickname(), msg.args()[0], msg.trailing());
                     }
                     if (msg.command() == "PRIVMSG" && msg.params()[0].substr(0,1) != "#") {
-                        self.emit('privmsg', {from: msg.nickname(), to: msg.args()[0], msg: msg.trailing()});
+                        self.emit('privmsg', msg.nickname(), msg.args()[0], msg.trailing());
                     }
                     if(msg.command() != 'PRIVMSG') {
                         self.emit(msg.command().toLowerCase(), msg);
@@ -110,6 +112,9 @@ module.exports = (function(){
         });
         EventEmitter.call(self);
         self.addListener('raw', function(msg) {
+            if((typeof msg.command).toLowerCase() != "function") {
+                return;
+            }
             if (msg.command() == "MODE" || msg.command() == "rpl_endofmotd") {
                 logger.log("verbose", "attempt join");
                 for (var j in opt.channels) {
@@ -136,19 +141,36 @@ module.exports = (function(){
         var self = this;
         self.conn.destroy();
     }
-    connection.prototype.send = function(text) {
+    connection.prototype.send = function(dead) {
+        var args = Array.prototype.slice.call(arguments);
+        if (args[args.length - 1].match(/\s/) || args[args.length - 1].match(/^:/) || args[args.length - 1] === '') {
+                    args[args.length - 1] = ':' + args[args.length - 1];
+                }
         var self = this;
-        self.conn.write(text);
+        self.conn.write(args.join(' ') + '\r\n');
         return true;
     };
-    connection.prototype.say = function(to, msg) {
+    connection.prototype.say = function(dead) {
+        var args = Array.prototype.slice.call(arguments);
+args = ["PRIVMSG"].concat(args);
+        if (args[args.length - 1].match(/\s/) || args[args.length - 1].match(/^:/) || args[args.length - 1] === '') {
+                    args[args.length - 1] = ':' + args[args.length - 1];
+                }
         var self = this;
-        self.conn.write("PRIVMSG "+to+" "+msg+"\r\n");
+        self.conn.write(args.join(' ') + '\r\n');
     }
 
     connection.prototype.raw = function(msg) {
         var self = this;
         self.conn.write(msg+"\r\n");
+    }
+    connection.prototype.join = function(msg) {
+        var self = this;
+        self.conn.write("JOIN " + msg + "\r\n");
+    }
+    connection.prototype.part = function(msg) {
+        var self = this;
+        self.conn.write("PART " + msg + "\r\n");
     }
     /*
 

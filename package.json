@@ -1,8 +1,8 @@
 {
   "name": "nodeircclient",
-  "version": "1.0.0",
+  "version": "1.0.12",
   "description": "ircd for node",
-  "main": "index.js",
+  "main": "irc.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
