@@ -43,102 +43,118 @@ module.exports = (function(){
 
     var connection = function(opt) {
         var self = this;
+        self.gotPing = true;
         self.events = {
             'timeout': function() {
+                self.gotPing = false;
                 console.log('timeout');
                 try {
                     self.send("PING","1");
-                } catch(err) {
-                for(var i in self.listeners) {
-                self.removeListener(i, self.listeners[i]);
-                }
-                self.conn.destroy();
+                    setTimeout(function() {
+                        if(!self.gotPing) {
+                            for(var i in self.listeners) {
+                                self.removeListener(i, self.listeners[i]);
+                            }
+                            self.conn.destroy();
 
-                connections.connect(self.options);
+                            connections.connect(self.options);
+
+                        }
+                    }, 8 * 1000);
+                } catch(err) {
+                    for(var i in self.listeners) {
+                        self.removeListener(i, self.listeners[i]);
+                    }
+                    self.conn.destroy();
+
+                    connections.connect(self.options);
                 }
             },
             'error': function(err) {
                 console.log(err);
                 connection(self.options);
             },
-        'data': function(data) {
-            if(registered == false) {
+            'data': function(data) {
+                if(registered == false) {
 
-                self.conn.write("USER " + opt.nick + " 8 *  :" + opt.nick + "\r\n");
-                self.conn.write("NICK " + opt.nick + "\r\n");
+                    self.conn.write("USER " + opt.nick + " 8 *  :" + opt.nick + "\r\n");
+                    self.conn.write("NICK " + opt.nick + "\r\n");
 
-                registered = true;
-            }
-            if(opt.debug) {
-                logger.log("verbose", 'Received: ' + data);
-            }
-
-
-            var tmp = data.toString().split(/\r\n/gi).map(e => e + "\r\n").filter(e => e.toString() != "\r\n").map(e => {
-                try {
-                    e = new Message(e);
-                } catch (error) {
-                    e = undefined;
+                    registered = true;
                 }
-                return e;
-            });
-            for (var i in tmp) {
-                var msg = tmp[i];
+                if(opt.debug) {
+                    logger.log("verbose", 'Received: ' + data);
+                }
 
-                if (msg && msg.command) {
-                    if(opt.debug) {
-                        //logger.log("verbose", msg);
+
+                var tmp = data.toString().split(/\r\n/gi).map(e => e + "\r\n").filter(e => e.toString() != "\r\n").map(e => {
+                    try {
+                        e = new Message(e);
+                    } catch (error) {
+                        e = undefined;
                     }
-                    msg.data = {};
-                    msg.data.server = self.server;
-                    //msg.data.nick = self.nick;
-                    self.emit('raw', msg);
-                    if (msg.command() == "PRIVMSG" && msg.params()[0].substr(0,1) == "#") {
-                        self.emit('msg#', msg.nickname(), msg.args()[0], msg.trailing());
-                    }
-                    if (msg.command() == "PRIVMSG") {
-                        self.emit('msg', msg.nickname(), msg.args()[0], msg.trailing());
-                    }
-                    if (msg.command() == "PRIVMSG" && msg.params()[0].substr(0,1) != "#") {
-                        self.emit('privmsg', msg.nickname(), msg.args()[0], msg.trailing());
-                    }
-                    if(msg.command() != 'PRIVMSG') {
-                        self.emit(msg.command().toLowerCase(), msg);
+                    return e;
+                });
+                for (var i in tmp) {
+                    var msg = tmp[i];
+
+                    if (msg && msg.command) {
+                        if(opt.debug) {
+                            //logger.log("verbose", msg);
+                        }
+                        msg.data = {};
+                        msg.data.server = self.server;
+                        //msg.data.nick = self.nick;
+                        self.emit('raw', msg);
+                        if (msg.command() == "PRIVMSG" && msg.params()[0].substr(0,1) == "#") {
+                            self.emit('msg#', msg.nickname(), msg.args()[0], msg.trailing());
+                        }
+                        if (msg.command() == "PRIVMSG") {
+                            self.emit('msg', msg.nickname(), msg.args()[0], msg.trailing());
+                        }
+                        if (msg.command() == "PRIVMSG" && msg.params()[0].substr(0,1) != "#") {
+                            self.emit('privmsg', msg.nickname(), msg.args()[0], msg.trailing());
+                        }
+                        if(msg.command() != 'PRIVMSG') {
+                            self.emit(msg.command().toLowerCase(), msg);
+                        }
                     }
                 }
-            }
-        },
+            },
 
-        'close': function() {
-            logger.log("verbose", 'Connection closed');
-        }
-    };
-    self.listeners = {
-        
-        'raw': function(msg) {
-            if((typeof msg.command).toLowerCase() != "function") {
-                return;
+            'close': function() {
+                logger.log("verbose", 'Connection closed');
             }
-            if (msg.command() == "MODE" || msg.command() == "rpl_endofmotd") {
-                logger.log("verbose", "attempt join");
-                for (var j in opt.channels) {
-                    self.conn.write("JOIN " + opt.channels[j] + "\r\n");
+        };
+        self.listeners = {
+
+            'raw': function(msg) {
+                if((typeof msg.command).toLowerCase() != "function") {
+                    return;
                 }
-            }
-            if(msg.command() == "NOTICE") {
-                logger.log("verbose", "trailing: "+msg.trailing());
-            }
-            /*if(msg.command() == "NOTICE" && msg.trailing().toString().toLowerCase().indexOf("no ident response") != -1) {
+                if (msg.command() == "MODE" || msg.command() == "rpl_endofmotd") {
+                    logger.log("verbose", "attempt join");
+                    for (var j in opt.channels) {
+                        self.conn.write("JOIN " + opt.channels[j] + "\r\n");
+                    }
+                }
+                if(msg.command() == "NOTICE") {
+                    logger.log("verbose", "trailing: "+msg.trailing());
+                }
+                /*if(msg.command() == "NOTICE" && msg.trailing().toString().toLowerCase().indexOf("no ident response") != -1) {
                 logger.log("verbose", "try nick again");
                 self.conn.write("USER " + self.nick + " * *  :" + self.nick + "\r\n");
                 self.conn.write("NICK " + self.nick + "\r\n");
             }*/
-            if (msg.command() == "PING") {
-                logger.log("verbose", "got ping: " + msg.trailing());
-                self.conn.write("PONG " + msg.trailing()+"\r\n");
+                if (msg.command() == "PONG") {
+                    self.gotPing = true;
+                }
+                if (msg.command() == "PING") {
+                    logger.log("verbose", "got ping: " + msg.trailing());
+                    self.conn.write("PONG " + msg.trailing()+"\r\n");
+                }
             }
-        }
-    };
+        };
         var registered = false;
 
         self.conn = new net.Socket();
@@ -155,13 +171,13 @@ module.exports = (function(){
 
         });
         self.conn.setKeepAlive(true);
-            self.conn.setTimeout(8 * 1000);
-            for(var i in self.listeners) {
-                self.addListener(i, self.listeners[i]);
-            }
-            for(var j in self.events) {
-                self.conn.on(j, self.events[j]);
-            }
+        self.conn.setTimeout(8 * 1000);
+        for(var i in self.listeners) {
+            self.addListener(i, self.listeners[i]);
+        }
+        for(var j in self.events) {
+            self.conn.on(j, self.events[j]);
+        }
         EventEmitter.call(self);
 
     };
@@ -174,18 +190,18 @@ module.exports = (function(){
     connection.prototype.send = function(dead) {
         var args = Array.prototype.slice.call(arguments);
         if (args[args.length - 1].match(/\s/) || args[args.length - 1].match(/^:/) || args[args.length - 1] === '') {
-                    args[args.length - 1] = ':' + args[args.length - 1];
-                }
+            args[args.length - 1] = ':' + args[args.length - 1];
+        }
         var self = this;
         self.conn.write(args.join(' ') + '\r\n');
         return true;
     };
     connection.prototype.say = function(dead) {
         var args = Array.prototype.slice.call(arguments);
-args = ["PRIVMSG"].concat(args);
+        args = ["PRIVMSG"].concat(args);
         if (args[args.length - 1].match(/\s/) || args[args.length - 1].match(/^:/) || args[args.length - 1] === '') {
-                    args[args.length - 1] = ':' + args[args.length - 1];
-                }
+            args[args.length - 1] = ':' + args[args.length - 1];
+        }
         var self = this;
         self.conn.write(args.join(' ') + '\r\n');
     }
@@ -208,10 +224,11 @@ args = ["PRIVMSG"].concat(args);
     */
 
 
-    return {
+    let connections = {
         connections: {},
         connect: function(opt) {
             this.connections[opt.server] = new connection(opt);
         }
     };
+    return connections;
 })();
