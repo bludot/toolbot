@@ -224,7 +224,7 @@ module.exports = (function(){
     */
 
 
-    let connections = {
+    var connections = {
         connections: {},
         connect: function(opt) {
             this.connections[opt.server] = new connection(opt);
