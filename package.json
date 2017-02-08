@@ -1,6 +1,6 @@
 {
   "name": "nodeircclient",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "ircd for node",
   "main": "irc.js",
   "scripts": {
