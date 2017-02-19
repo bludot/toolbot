@@ -1,3 +1,8 @@
+/**
+ *	codes to commands
+ *
+ */
+
 module.exports = {
    '001': {
       name: 'rpl_welcome',

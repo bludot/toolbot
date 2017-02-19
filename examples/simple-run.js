@@ -18,15 +18,15 @@ irc.connections[options.server].addListener('raw', function(msg) {
 //   console.log(msg);
 });
 
-irc.connections[options.server].addListener('msg', function(msg) {
-   console.log(msg);
-   if(msg.msg == "ping") {
+irc.connections[options.server].addListener('msg', function(from, to, msg) {
+   console.log("message: "+msg);
+   if(msg == "ping") {
       irc.connections[options.server].raw("PRIVMSG #test_irc PONG!");
    }
 });
 
-irc.connections[options.server].addListener('privmsg', function(msg) {
-   console.log(msg);
+irc.connections[options.server].addListener('privmsg', function(from, to, msg) {
+   console.log(from, to, msg);
 });
 
 irc.connections[options.server].addListener('msg#test_ircc', function(msg) {

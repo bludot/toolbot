@@ -1,6 +1,12 @@
 var Parser = require('./parser');
 var codes = require('./codes');
 
+
+/**
+ * parse the codes to messages
+ * @param  {[type]} crlfstring [description]
+ * @return {[type]}            [description]
+ */
 module.exports = function(crlfstring) {
   this.message  = Parser.parse(crlfstring);
   this._crlfstr = crlfstring;
