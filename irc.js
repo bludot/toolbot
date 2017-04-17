@@ -41,6 +41,11 @@ var util = require('util');
 
 module.exports = (function(){
 
+    /**
+     * connection some description
+     * @param  {object}   opt             options
+     * @return {object}   connections     connections
+     */
     var connection = function(opt) {
         var self = this;
         self.gotPing = true;
