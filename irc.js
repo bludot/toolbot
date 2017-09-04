@@ -65,6 +65,7 @@ module.exports = (function(){
  */
  var connection = function(opt) {
      var self = this;
+     self.options = opt;
      self.gotPing = true;
      self.events = {
          'timeout': function() {
@@ -77,6 +78,8 @@ module.exports = (function(){
                          for(var i in self.listeners) {
                              self.removeListener(i, self.listeners[i]);
                          }
+                         logger.log("error", '########################################PING TIMEOUT!');
+                         console.log('########################################PING TIMEOUT!');
                          self.conn.destroy();
                          connections.connect(self.options);
                      }
