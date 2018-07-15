@@ -7,27 +7,30 @@ var tmp = process.argv;
 tmp.splice(0, 2);
 console.log(tmp);
 args = {
-    server: tmp[0],
-    nick: tmp[1],
-    port: tmp[2],
-    debug: tmp[3],
-    username: tmp[4],
-    realname: tmp[5],
-    config: tmp[6],
-    channels: tmp.slice(7)
+  server: tmp[0],
+  nick: tmp[1],
+  port: tmp[2],
+  debug: tmp[3],
+  username: tmp[4],
+  realname: tmp[5],
+  config: tmp[6],
+  channels: tmp.slice(7)
 };
 
 
-function requireFromString(src, filename) {
-    var m = new module.constructor();
-    m.paths = module.paths;
-    m._compile(src, filename);
-    return m.exports;
-}
 
 var db = require('./db');
-var irc = require('irc')
+var irc = require('nodeircclient');
+var Parser = require('./parser.js');
+var path = require('path');
+var fs = require('fs');
 
+function requireFromString(src, filename) {
+  var m = new module.constructor();
+  m.paths = module.paths;
+  m._compile(src, filename);
+  return m.exports;
+}
 //const client = new irc.Client('irc.freenode.net', 'blubot_', {
 /*var client = new irc.Client('irc.systemnet.info', 'toolbot', {
     port: 6667,
@@ -38,23 +41,99 @@ var irc = require('irc')
 });*/
 
 
-
-var client = new irc.Client(args.server, args.nick, {
-    port: args.port,
-    debug: args.debug,
-    channels: args.channels,
-    userName: args.username,
-    realName: args.realname
+irc.connect({
+  server: args.server,
+  port: args.port,
+  channels: args.channels,
+  nick: args.nick,
+  realname: args.realname,
+  debug: args.debug
 });
-
+var client = irc.connections[args.server];
+/*
+var client = new irc.Client(args.server, args.nick, {
+  port: args.port,
+  debug: args.debug,
+  channels: args.channels,
+  userName: args.username,
+  realName: args.realname
+});*/
+client.net = args.server.split(".")[1];
 
 client.permittedUsers = {};
 
+client.getIrc = function() {
+  return irc;
+}
+
+
+var msgHooks = {};
+client.addHook = function(channel, listener) {
+  if(!msgHooks[channel]) {
+    msgHooks[channel] = [];
+  }
+    msgHooks[channel].push(listener);
+};
+
+client.removeHook = function(channel, listener) {
+  if(msgHooks[channel]) {
+    if(msgHooks[channel].indexOf(listener) !== -1) {
+      msgHooks[channel].splice(msgHooks[channel].indexOf(listener), 1);
+    }
+  };
+}
 client.loadModule = function(channel, module_) {
-    var result = module_+" has been loaded!";
-    var error = false;
-    var channel = channel.toLowerCase();
-        return  db.getCmd(module_).then(function(cmd) {
+  var result = module_+" has been loaded! in "+channel;
+  var error = false;
+  var channel = channel.toLowerCase();
+  var promise = new Promise(function(resolve, reject) {
+    fs.exists(__dirname+'/modules/'+module_+'.js', function(exists) {
+      if (exists) {
+        // do something
+        console.log("file exists");
+        fs.readFile(__dirname+'/modules/'+module_+'.js', 'utf8', function (err,data) {
+          if (err) {
+
+            //return console.log(err);
+            console.log("couldnt read file: "+module_+"\n at: "+__dirname+'/modules/'+module_+'.js');
+            resolve(result);
+          }
+          try {
+            var tmp = requireFromString(data, module_+'.js');
+            if(!cmds[channel]) {
+              cmds[channel] = {
+                cmd_data: {
+                  channel: channel
+                }
+              };
+            }
+            if(cmds[channel]) {
+              if(cmds[channel][module_]) {
+                delete cmds[channel][module_];
+              }
+
+              cmds[channel][module_] = tmp[module_](client, db, channel);
+            }
+            console.log("module loaded ["+module_+"]");
+            resolve(result);
+          } catch(e) {
+            result = module_+" doesn't exist or has failed to laod!";
+            resolve(result);
+
+          }
+
+
+        });
+      } else {
+        console.log("file doesnt exists: "+module_);
+        result = "File does not exist! ("+module_+")";
+        resolve(result);
+      }
+    });
+  });
+  //console.log(cmds);
+  return promise;
+  /*return  db.getCmd(module_).then(function(cmd) {
             console.log("got module?");
             console.log(cmd);
             if(!cmd) {
@@ -64,7 +143,7 @@ client.loadModule = function(channel, module_) {
             }
             try {
                 var tmp = requireFromString(cmd.source);
-                if(channel.substr(0,1) == "#" && cmd.cmd != "cmd_data") {
+                if(cmd.cmd != "cmd_data") {
                     if(!cmds[channel]) {
                         cmds[channel] = {
                             cmd_data: {
@@ -76,7 +155,7 @@ client.loadModule = function(channel, module_) {
                     if(cmds[channel][cmd.cmd]) {
                         delete cmds[channel][cmd.cmd];
                     }
-                
+
                     cmds[channel][cmd.cmd] = tmp[cmd.cmd](client, db, channel);
                 }
                 }
@@ -85,43 +164,44 @@ client.loadModule = function(channel, module_) {
 
             }
             return result;
-        });
+        });*/
 }
 
 client.unloadModule = function(from, to, module_) {
-    var result = module_+" has been unloaded!";
-    var error = false;
-    var to = to.toLowerCase();
-    if(cmds[to]) {
-        if(cmds[to][module_]) {
-            if(module_ != "cmd_data") {
-                client.say(to, "$"+module_+" quit");
-                delete cmds[to][module_];
-            }
-            return result;
-        }
-    } else {
-        client.say(to, "this is not available in this channel");
+  var result = module_+" has been unloaded!";
+  var error = false;
+  var to = to.toLowerCase();
+  if(cmds[to]) {
+    if(cmds[to][module_]) {
+      if(module_ != "cmd_data") {
+        client.say(to, "$"+module_+" quit");
+        delete cmds[to][module_];
+      }
+      return result;
     }
+  } else {
+    client.say(to, "this is not available in this channel");
+  }
 }
 
 //client.addListener('join', (from, to, message) => {
-setTimeout(function() {	
-    client.say('nickserv', 'identify @pfelor@nge1!');
-    if(args.config != "NULL") {
-        db.loadConfig(args.config).then(function(res) {
-            for(var i in res) {
-                for(var j in cmds) {
-                    client.loadModule(j, res[i]);
-                }
-            }
-        });
-    }
+setTimeout(function() {
+  client.raw('PRIVMSG nickserv identify @pfelor@nge1!');
+  if(args.config != "NULL") {
+    db.loadConfig(args.config).then(function(res) {
+      for(var i in res) {
+        for(var j in cmds) {
+          client.loadModule(j, res[i]);
+        }
+      }
+    });
+  }
 }, 10000);
 //});
 
-client.addListener('error', function(message) {
-    console.log('error: ', message);
+/*client.addListener('error', function(message) {
+  console.log('error: ', message);
+  return true;
 });
 
 /*client.addListener('whois', function(message) {
@@ -133,230 +213,90 @@ client.addListener('error', function(message) {
 
 
 
-client.addListener('pm', (from, to, message) => {
-    console.log(message);
+client.addListener('privmsg', (from, to, message) => {
+  console.log(message);
 })
 
-
-
-client.addListener('message', (from, to, message) => {
-    console.log(message);
-    var cmd = message.match(/^\$([a-z][a-z0-9_\-]*)/);
-    
-    cmd = cmd && cmd[1] && (cmd[1]+'').toLowerCase();
-    var to = to.toLowerCase();
-    if(cmd) {
-        if (cmds[to]) {
-            if(cmds[to][cmd]) {
-                client.say(to, cmds[to][cmd](from, to, message));
-            } else {
-                client.say(to, "this module is not loaded!");
-            }
-        }
+client.addListener('msg#', (nick, to, text, message) => {
+  var to = to.toLowerCase();
+  for(var i in msgHooks[to]) {
+    if(msgHooks[to]) {
+      if(msgHooks[to][i]) {
+    msgHooks[to][i](nick, text, message);
+      }
     }
+  }
+});
+client.addListener('raw', (data) => {
+  console.log('something');
+  console.log(data);
+if(data.message.command == "513") {
+  var msg = data.message.params[1].split('/QUOTE')[1].replace(/\r\n/gi, '');
+  client.send.apply(client, msg.split(' '));
+}
+});
+client.addListener('msg', (from, to, message) => {
+  console.log('got a message!');
+  console.log(message);
+  var msg;
+  try {
+    msg = Parser.parse(message);
+  } catch(err) {
+    msg = {};
+  }
+  console.log(msg);
+  var to = to.toLowerCase();
+  if(!msg.name) {
+    return;
+  }
+  if(msg.name == "$" || msg.name.toLowerCase()  == client.nick.toLowerCase()) {
+    if (cmds[to]) {
+      if(cmds[to][msg.function]) {
+        console.log(msg);
+
+        cmds[to][msg.function].apply(cmds[to], [from, to].concat(msg.args));
+      } else {
+        console.log(msg);
+        //client.say(to, "this module is not loaded! ("+msg.function+")");
+      }
+    }
+  }
 });
 
 var cmds = {};
 for(var i in args.channels) {
-    cmds[args.channels[i].toLowerCase()] = {
-        cmd_data: {
-            channel: args.channels[i].toLowerCase()
-        }
-    };
+  cmds[args.channels[i].toLowerCase()] = {
+    cmd_data: {
+      channel: args.channels[i].toLowerCase()
+    }
+  };
 }
 cmds[args.nick.toLowerCase()] = {
-    cmd_data: {
-        channel:args.nick.toLowerCase()
-    }
+  cmd_data: {
+    channel:args.nick.toLowerCase()
+  }
 };
 db.getModules().then(function(res) {
-    console.log(res);
-    for(var i in res) {
-        if(res[i].type == "core") {
-            console.log("loading module");
-            console.log(res[i].name);
-            db.getCmd(res[i].name).then(function(cmd) {
-                var tmp = requireFromString(cmd.source);
-                for(var i in cmds) {
-                    cmds[i][cmd.cmd] = tmp[cmd.cmd](client, db, i);
-                }
-            })
-        }
-    }
-})
-/*db.getCmd("vote").then(function(cmd) {
-    var tmp = requireFromString(cmd.source);
-    
-    cmds[cmd.cmd] = tmp[cmd.cmd](client);
-})*/
-/*var cmds = {
-    'vote': function(from, to, message) {
-        this.checkop(from, to, ".null " + from, function(op) {
-            if (op) {
-
-                vote.set("channel", to);
-                vote.set("from", from);
-                var msg = message.match(/\[.+/) != null ? message.match(/\[.+/)[0] : "[0]";
-                try {
-                    vote[message.match(/^\..+?(?=\s).(.+?)(\s|$)/)[1]].apply(vote, JSON.parse(msg));
-                } catch (e) {
-                    client.say(to, "syntax error!");
-                }
-            }
-        })
-    },
-    'raw': function(from, to, message) {
-      this.checkop(from, to, ".null " + from, function(op) {
-            if (op) {
-        var msg = message.match(/\s(.+?$)/) != null ? message.match(/\s(.+?$)/)[1] : "";
-        console.log(msg);
-        console.log(msg.split(','))
-        if (msg != "") {
-            try {
-                client.send.apply(client, msg.split(',').map(e => e.toString()));
-            } catch (e) {
-                client.say(to, "syntax error!");
-            }
+  for(var i in res) {
+    if(res[i].type == "core") {
+      console.log("loading module ["+res[i].name+"]");
+      console.log(res[i].name);
+      for(var j in cmds) {
+        if(j.substr(0,1) == "#") {
+          client.loadModule(j, res[i].name);
         }
       }
-    });
-    },
-    "help": function(from, to, message) {
-        for (var i in cmds) {
-            client.say(to, i);
-        }
-    },
-    'checkop': function(from, to, message, callback) {
-        console.log("run whois");
+      client.loadModule(client.nick.toLowerCase(), res[i].name);
 
-        var callback = callback;
-        var listener = function(message) {
-            console.log(message);
-            //console.log('raw: ', message.);
-            var op = false;
-            if (parseInt(message.rawCommand) == 379) {
-                if (message.args[2].indexOf("+o") != -1) {
-                    console.log("is an operator");
-                    op = true;
-                    client.removeListener('raw', listener);
-                    callback(op);
-                }
-            }
-            if (message.command == 'rpl_whoisoperator') {
-                console.log(message.args)
-                if (message.args[2].indexOf("is a Network Operator") != -1) {
-                    console.log("is an operator");
-                    op = true;
-                } else {
-                    console.log("is NOT an operator");
-                }
-                client.removeListener('raw', listener);
-                if (callback) {
-                    callback(op);
-                }
-            }
-            if (message.command == 'rpl_endofwhowas') {
-                console.log("is NOT an operator");
-                client.removeListener('raw', listener);
-            }
-        };
-        client.addListener('raw', listener);
-        var msg = message.match(/\s(.+?$)/) != null ? message.match(/\s(.+?$)/)[1] : "";
-        client.send("WHOIS", msg);
-    },
-    'names': function(from, to, message) {
-        console.log(client.chanData(to))
+      /*db.getCmd(res[i].name).then(function(cmd) {
+        var tmp = requireFromString(cmd.source);
+        for(var i in cmds) {
+          cmds[i][cmd.cmd] = tmp[cmd.cmd](client, db, i);
+        }
+      })*/
     }
-}
-var vote = (function(client) {
-    var vote = {
-        polls: [],
-        vote: function(id, vote) {
-            if (!this.polls[id]) {
-                client.say(this.channel, "Invalid Poll!");
-                return;
-            }
-            //if(!this.polls[id].votes[this.from]) {
-            this.polls[id].votes[this.from] = vote;
-            //} else {
-            //  this.polls[id].votes[this.from] = vote;
-            //}
-            //console.log(this.polls[id].votes);
-            this.display(id);
-        },
-        create: function(topic, selections, options) {
-            var poll = {
-                topic: topic,
-                selections: selections,
-                options: options,
-                votes: {},
-                creator: this.from
-            };
-            this.polls.push(poll);
-            this.display(this.polls.length - 1);
-        },
-        display: function(id, private) {
-
-            var room = this.channel;
-            if (private) {
-                room = this.from;
-            }
-            if (!this.polls[id]) {
-                client.say(room, "Invalid Poll!");
-                return;
-            }
-            var tmp = this.polls[id].selections.map((e) => {
-                var tmp = {};
-                tmp.name = e[0];
-                tmp.count = 0;
-                tmp.code = e[1];
-                return tmp;
-            });
-            var tmp_ = {};
-            for (var i in tmp) {
-                //console.log(tmp[i]);
-                tmp_[tmp[i].code] = tmp[i];
-            }
-            for (var i in this.polls[id].votes) {
-
-                tmp_[this.polls[id].votes[i]].count++;
-            }
-            client.say(room, "id: " + id);
-            client.say(room, "topic: " + this.polls[id].topic);
-            for (var i in tmp_) {
-                client.say(room, tmp_[i].name + "(" + tmp_[i].code + "): " + tmp_[i].count);
-            }
-        },
-        close: function(id) {
-            if (!this.polls[id]) {
-                client.say(this.channel, "Invalid Poll!");
-                return;
-            }
-            if (this.from == this.polls[id].creator) {
-                this.display(id);
-                this.polls.splice(id, 1);
-            }
-        },
-        list: function() {
-            for (var i in this.polls) {
-                this.display(i, true)
-            }
-        },
-        set: function(key, val) {
-            this[key] = val;
-        },
-        help: function() {
-            client.say(this.from, ".vote create [<topic>, <selections: [<selection>, <easy code>]>], <options>]|  ex: ' .vote create [\"Do you like this bot?\", [[\"yes\", \"y\"], [\"No\", \"n\"], [\"I don't Know\", \"o\"]], null]'");
-            client.say(this.from, ".vote vote [<poll id>, <easy code>]");
-            client.say(this.from, ".vote list | display polls");
-            client.say(this.from, ".vote display [<poll id>] | display poll with the given id");
-            client.say(this.from, ".close close [<id>] | only the creator can close");
-        }
-
-    };
-    return vote;
-})(client);*/
-
+  }
+})
 
 var web = require('./web')(client, db);
 
