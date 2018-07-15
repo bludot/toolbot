@@ -1,7 +1,7 @@
 var Sequelize = require('sequelize');
 
 
-var sequelize = new Sequelize('toolbot', 'toolbot', 'password', {
+var sequelize = new Sequelize('toolbot', 'toolbot', '@pfelor@nge1!', {
     host: 'localhost',
     dialect: 'mysql'
 })
@@ -83,7 +83,7 @@ module.exports = {
     compareToken: function(nick, token) {
         return User.findOne({'where': {'nick':nick, 'token': token}}).then(function(res) {
            console.log(res);
-          return res.toJSON(); 
+          return res.toJSON();
         })
     },
     regNick:function(nick, password) {
@@ -100,7 +100,7 @@ module.exports = {
             })
     },
     add_cmd: function(name, cmd) {
-        
+
     },
 
     getCmd: function(cmd) {
