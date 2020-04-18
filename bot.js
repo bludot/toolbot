@@ -20,7 +20,7 @@ args = {
 
 
 var db = require('./db');
-var irc = require('nodeircclient');
+var irc = require('irc');
 var Parser = require('./parser.js');
 var path = require('path');
 var fs = require('fs');
@@ -41,25 +41,25 @@ function requireFromString(src, filename) {
 });*/
 
 
-irc.connect({
+/*irc.connect({
   server: args.server,
   port: args.port,
   channels: args.channels,
   nick: args.nick,
   realname: args.realname,
   debug: args.debug
-});
-var client = irc.connections[args.server];
-/*
+});*/
+//var client = irc.connections[args.server];
+
 var client = new irc.Client(args.server, args.nick, {
   port: args.port,
   debug: args.debug,
   channels: args.channels,
   userName: args.username,
   realName: args.realname
-});*/
+});
 client.net = args.server.split(".")[1];
-
+client.nick = args.nick;
 client.permittedUsers = {};
 
 client.getIrc = function() {
@@ -186,7 +186,11 @@ client.unloadModule = function(from, to, module_) {
 
 //client.addListener('join', (from, to, message) => {
 setTimeout(function() {
-  client.raw('PRIVMSG nickserv identify @pfelor@nge1!');
+  client.send.apply(client, 'NICK toolbot'.split(' '));
+  client.send.apply(client, 'USER toolbot localhost * :toolbot'.split(' '));
+  console.log("ATTEMPT TO LOGIN!!!");
+  client.send.apply(client, 'PRIVMSG nickserv identify @pfelor@nge1!'.split(' '));
+  client.send.apply(client, 'JOIN #lovescience'.split(' '));
   if(args.config != "NULL") {
     db.loadConfig(args.config).then(function(res) {
       for(var i in res) {
@@ -199,7 +203,7 @@ setTimeout(function() {
 }, 10000);
 //});
 
-/*client.addListener('error', function(message) {
+client.addListener('error', function(message) {
   console.log('error: ', message);
   return true;
 });
@@ -214,10 +218,11 @@ setTimeout(function() {
 
 
 client.addListener('privmsg', (from, to, message) => {
-  console.log(message);
+  console.log("PRIV MSG", message);
+  //if (message.)
 })
 
-client.addListener('msg#', (nick, to, text, message) => {
+client.addListener('message#', (nick, to, text, message) => {
   var to = to.toLowerCase();
   for(var i in msgHooks[to]) {
     if(msgHooks[to]) {
@@ -230,12 +235,19 @@ client.addListener('msg#', (nick, to, text, message) => {
 client.addListener('raw', (data) => {
   console.log('something');
   console.log(data);
-if(data.message.command == "513") {
-  var msg = data.message.params[1].split('/QUOTE')[1].replace(/\r\n/gi, '');
+  // handle ping request
+  if (data.command === "NOTICE" && data.args[1].substr(0, 75) === "*** If you are having problems connecting due to registration timeouts type") {
+    console.log("I GOT SOMETHING!");
+    const msg = data.args[1].match(/\/raw\sPONG\s.+?(?=\s)/g)[0].substr(5).replace(/\r\n/gi, '');
+    console.log("THE MSG", msg)
+    client.send.apply(client, msg.split(' '));
+  }
+if(data.command == "513") {
+  var msg = data.message.args[1].split('/QUOTE')[1].replace(/\r\n/gi, '');
   client.send.apply(client, msg.split(' '));
 }
 });
-client.addListener('msg', (from, to, message) => {
+client.addListener('message', (from, to, message) => {
   console.log('got a message!');
   console.log(message);
   var msg;
@@ -244,7 +256,36 @@ client.addListener('msg', (from, to, message) => {
   } catch(err) {
     msg = {};
   }
-  console.log(msg);
+  console.log("message raw?", msg);
+  var to = to.toLowerCase();
+  if(!msg.name) {
+    return;
+  }
+  if(msg.name == "$" || msg.name.toLowerCase()  == client.nick.toLowerCase()) {
+    if (cmds[to]) {
+      if(cmds[to][msg.function]) {
+        console.log(msg);
+
+        cmds[to][msg.function].apply(cmds[to], [from, to].concat(msg.args));
+      } else {
+        console.log(msg);
+        //client.say(to, "this module is not loaded! ("+msg.function+")");
+      }
+    }
+  }
+});
+
+client.addListener('pm', (from, to, message) => {
+  console.log('got a message!');
+  console.log(message);
+  var msg;
+  try {
+    msg = Parser.parse(message);
+  } catch(err) {
+    msg = {};
+  }
+  console.log("message raw?", msg);
+  console.log(cmds[to]);
   var to = to.toLowerCase();
   if(!msg.name) {
     return;

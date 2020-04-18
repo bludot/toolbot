@@ -4,7 +4,8 @@
   "description": "A bot with many functions",
   "main": "bot.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node bot.js irc.travelcats.net toolbot 6667 true toolbot toolbot NULL #main"
   },
   "author": "Nyanko/Bludot",
   "license": "ISC",
@@ -14,9 +15,12 @@
     "body-parser": "^1.15.1",
     "crypto-extra": "^0.2.4",
     "express": "^4.13.4",
+    "irc": "^0.5.2",
     "markovchain-generate": "^1.0.11",
     "mysql": "^2.10.2",
+    "nodeircclient": "^1.2.0",
     "page-info": "^2.1.1",
+    "pg": "^8.0.2",
     "request": "^2.72.0",
     "sequelize": "^3.20.0",
     "url-unshort": "^1.1.3"

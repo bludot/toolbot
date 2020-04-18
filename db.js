@@ -1,10 +1,14 @@
 var Sequelize = require('sequelize');
 
 
-var sequelize = new Sequelize('toolbot', 'toolbot', '@pfelor@nge1!', {
-    host: 'localhost',
-    dialect: 'mysql'
+var sequelize = new Sequelize('toolbot', 'root', 'example', {
+    host: 'db',
+    dialect: 'mysql',
+    /*sync: {
+        force: true
+    }*/
 })
+//sequelize.sync({force: true});
 
 
 

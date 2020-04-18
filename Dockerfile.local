@@ -1,0 +1,15 @@
+FROM node:8-alpine
+
+ENV APP_PATH /usr/src/app
+ENV NODE_ENV development
+
+WORKDIR ${APP_PATH}
+COPY package.json .
+
+RUN node --version
+RUN apk --no-cache add ca-certificates wget libgcc
+RUN apk update && apk add --no-cache file bash bash-completion bash-doc icu-dev icu-libs libc6-compat
+RUN apk add --no-cache --virtual .build-deps 
+RUN apk add --no-cache --virtual .gyp alpine-sdk python libc6-compat make gcc g++ linux-headers paxctl gnupg
+RUN npm install -g pm2
+RUN npm install

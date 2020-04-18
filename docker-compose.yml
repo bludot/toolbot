@@ -1,0 +1,37 @@
+version: '3'
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: 'Dockerfile.local'
+    #entrypoint: '/bin/bash'
+    command: "bash -c 'npm install && npm run start'"
+    volumes:
+      - '.:/usr/src/app'
+      - 'toolbot_deps:/usr/src/app/node_modules'
+    env_file: '.env'
+    networks:
+      - 'development'
+    labels:
+      - 'name=toolbot'
+
+  db:
+    image: mysql:5.6
+    restart: always
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_DATABASE: toolbot
+      
+    volumes:
+      - toolbot_mysql:/var/lib/mysql
+    networks:
+      - 'development'
+
+volumes:
+  toolbot_deps:
+  toolbot_mysql:
+networks:
+  development:
+      
