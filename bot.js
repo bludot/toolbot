@@ -5,17 +5,36 @@ var args = {};
 //
 var tmp = process.argv;
 tmp.splice(0, 2);
-console.log(tmp);
-args = {
-  server: tmp[0],
-  nick: tmp[1],
-  port: tmp[2],
-  debug: tmp[3],
-  username: tmp[4],
-  realname: tmp[5],
-  config: tmp[6],
-  channels: tmp.slice(7)
-};
+//console.log(tmp);
+if (process.env.SERVER) {
+  args = {
+    server: process.env.SERVER,
+    nick: process.env.NICK,
+    port: process.env.PORT,
+    debug: process.env.DEBUG,
+    username: process.env.USERNAME,
+    realname: process.env.REALNAME,
+    config: process.env.CONFIG || "NULL",
+    channels: process.env.CHANNELS.split(',')
+  };
+} else {
+  args = {
+    server: tmp[0],
+    nick: tmp[1],
+    port: tmp[2],
+    debug: tmp[3],
+    username: tmp[4],
+    realname: tmp[5],
+    config: tmp[6],
+    channels: tmp.slice(7)
+  };
+}
+
+if (args.port.substr(0,1) === "+") {
+  args.port = args.port.substr(1);
+  args.secure = true;
+}
+console.log('args', args);
 
 
 
@@ -56,7 +75,8 @@ var client = new irc.Client(args.server, args.nick, {
   debug: args.debug,
   channels: args.channels,
   userName: args.username,
-  realName: args.realname
+  realName: args.realname,
+  secure: args.secure
 });
 client.net = args.server.split(".")[1];
 client.nick = args.nick;
