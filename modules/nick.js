@@ -6,6 +6,7 @@ var nick = function(client, db) {
             if (op) {
                 if(nick && nick != "") {
                     client.send.apply(client, ["NICK", nick]);
+                    client.nick = nick;
                 }
             }
         });
