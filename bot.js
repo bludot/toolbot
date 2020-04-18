@@ -206,11 +206,11 @@ client.unloadModule = function(from, to, module_) {
 
 //client.addListener('join', (from, to, message) => {
 setTimeout(function() {
-  client.send.apply(client, 'NICK toolbot'.split(' '));
-  client.send.apply(client, 'USER toolbot localhost * :toolbot'.split(' '));
+
+  
   console.log("ATTEMPT TO LOGIN!!!");
-  client.send.apply(client, 'PRIVMSG nickserv identify @pfelor@nge1!'.split(' '));
-  client.send.apply(client, 'JOIN #lovescience'.split(' '));
+  client.send.apply(client, 'PRIVMSG nickserv identify somepass'.split(' '));
+  //client.send.apply(client, 'JOIN #lovescience'.split(' '));
   if(args.config != "NULL") {
     db.loadConfig(args.config).then(function(res) {
       for(var i in res) {
