@@ -22,7 +22,7 @@
     "page-info": "^2.1.1",
     "pg": "^8.0.2",
     "request": "^2.72.0",
-    "sequelize": "^3.20.0",
+    "sequelize": "^5.15.1",
     "url-unshort": "^1.1.3"
   }
 }
