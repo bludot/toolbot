@@ -10,7 +10,7 @@
   "author": "Nyanko/Bludot",
   "license": "ISC",
   "dependencies": {
-    "bcrypt": "^0.8.5",
+    "bcrypt": "^5.0.0",
     "bluebird": "^3.3.4",
     "body-parser": "^1.15.1",
     "crypto-extra": "^0.2.4",
