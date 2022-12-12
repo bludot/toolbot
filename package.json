@@ -14,7 +14,7 @@
     "bluebird": "^3.3.4",
     "body-parser": "^1.15.1",
     "crypto-extra": "^0.2.4",
-    "express": "^4.13.4",
+    "express": "^4.17.3",
     "irc": "^0.5.2",
     "markovchain-generate": "^1.0.11",
     "mysql": "^2.10.2",
